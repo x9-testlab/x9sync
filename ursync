@@ -1,0 +1,1576 @@
+#!/bin/bash
+
+##	Purpose: See fPrint_About().
+##	History:
+##		- 20100112 JC: Created from TEMPLATE_single-file_1-portion-to-copy_20191008.
+
+
+## Constants; template
+declare -i -r doDebug=0
+declare    -r _dir_BaseLogDirUnder_userHome="var/log"  ## Must not have beginning or ending slashes! (TODO: Detect and accomodate absolute path)
+declare    -r _thisVersion="0.9.0"
+declare -i -r _mustBeRunAsSudo=1
+
+
+function fPrint_About(){ _fdbgEnter "$FUNCNAME";
+	##	Purpose:
+	##		- Prints to stdout, general high-level description.
+	##		- Listed first in script only for easy of maintainability.
+	##	History:
+	##		- 20190911 JC: Created template.
+	#            X"                                                                               "X
+	_fEcho_Clean ""
+	_fEcho_Clean "Description."
+	_fEcho_Clean ""
+_fdbgEgress "$FUNCNAME"; }
+
+
+function fPrint_Syntax(){ _fdbgEnter "$FUNCNAME";
+	##	Purpose:
+	##		- Prints to stdout, the syntax.
+	##		- Listed second in script only for easy of maintainability (fMain() is actually 
+	##	History:
+	##		- 20190911 JC: Created template.
+	#            X"                                                                               "X
+	_fEcho_Clean ""
+	_fEcho_Clean "Syntax: ${meName} <source> <dest> [options]"
+	_fEcho_Clean "  • Source and dest folders:"
+	_fEcho_Clean "      • Ending slashes (or lack of) have no effect."
+	_fEcho_Clean "      • Either one can have a 'RemoteHostname:' at the beginning."
+	_fEcho_Clean ""
+_fdbgEgress "$FUNCNAME"; }
+
+
+function fPrint_Copyright(){ _fdbgEnter "$FUNCNAME";
+	##	History:
+	##		- 20190911 JC: Created
+	##	Accesses calling function variables:
+	##			Read-only ....: _thisVersion
+	##			Read/write ...: 
+	_fEcho_Clean ""
+	_fEcho_Clean "${meName} version ${_thisVersion}"
+	_fEcho_Clean "Copyright (c) 2018-2019 James Collier."
+	_fEcho_Clean "License GPLv3+: GNU GPL version 3 or later, full text at:"
+	_fEcho_Clean "    https://www.gnu.org/licenses/gpl-3.0.en.html"
+	_fEcho_Clean "There is no warranty, to the extent permitted by law."
+	_fEcho_Clean ""
+_fdbgEgress "$FUNCNAME"; }
+
+
+function fMain(){ _fdbgEnter "$FUNCNAME";
+	##	Purpose: Main script entry point.
+	##	History:
+	##		- 20190911 JC: Created template.
+
+	## Constants
+
+	## Validate
+	_fMustBeInPath basename
+#	_fMustBeInPath dirname
+#	_fMustBeInPath realpath
+
+	## Constants; template
+	local    -r _allArgs="$@"
+#	local    -r _userHome="${HOME}"
+#	local    -r _serialDT="$(date "+%Y%m%d-%H%M%S")"
+#	local    -r filespec_Log="${_userHome}/${_dir_BaseLogDirUnder_userHome}/${meName}/${meName}_${_serialDT}.log"
+
+	## Variables used by subroutines; template
+	local -i    _doShowSyntax=0
+#	local       _userName=""
+#	local       _command_Opts=""
+#	local       _command_FullStr=""
+
+	## Variables used by subroutines; custom
+	local       expectedPositionalArg1=""
+	local       expectedPositionalArg2=""
+
+	## Variables for this function only
+	local tmpStr=""
+
+	## Begin
+	_fEcho ""
+
+	## Execution flow
+	fInit_1of2 #....................................................... Init; early
+	fProcessArgs "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9" #........ Process arguments
+	fInit_2of2 #....................................................... Init; late
+	fValidate #........................................................ Validate
+#	fPrint_Copyright #................................................. Show copyright
+#	fPrint_PrepromptInfo #............................................. Display commands to run and other info
+#	fPromptToContinue #................................................ Prompt to continue
+	fMakeItSo #........................................................ Main execution
+
+	## Finished
+	_fEcho ""
+	_fEcho "Done."
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function fInit_1of2(){ _fdbgEnter "$FUNCNAME";
+	##	Purpose: Initialize script variables.
+	##	History:
+	##		- 20190911 JC: Created template.
+#	if [[ -z "${_userName}" ]]; then _userName="$SUDO_USER"; fi
+#	if [[ -z "${_userName}" ]]; then _userName="$USER"; fi
+_fdbgEgress "$FUNCNAME"; }
+
+
+function fProcessArgs(){ _fdbgEnter "$FUNCNAME";
+	##	History:
+	##		- 20190911 JC: Created
+
+	## Constants
+
+	## Variables
+	local tmpStr=""
+
+	## Scan all arguments to see if we just bail now and show help/version
+	case " ${_allArgs,,} " in
+		*" -h "*|*" --help "*)                 _doShowSyntax=1 ;;
+		*" -v "*|*" --ver "*|*" --version "*)  _doShowSyntax=1 ;;
+	esac
+
+	## Must have at least oen argument
+	if [[ -z "$(_fStrTrim_byecho "${_allArgs}")" ]]; then _doShowSyntax=1; fi
+
+	if [[ $_doShowSyntax -ne 0 ]]; then
+		fPrint_Copyright_About_Syntax_ThenQuit
+	else
+
+		## Process arguments
+		local currentArg=""
+		local -i doBailLoop=0
+		local prevArg="nevermatch_zNHyzdlk0E21WameiuMwxA"
+		while [[ ${doBailLoop} -eq 0 ]]; do
+
+			## Get next argument on the stack
+			currentArg="$1"; shift || true
+			if [[ -z "$currentArg" ]] && [[ -z "${prevArg}" ]]; then :;
+				## Two blank args in a row...bail
+				doBailLoop=1
+			else
+
+				## Debug
+				_fEcho "Debug: currentArg = '$currentArg'"  ## Debug
+
+				if [[ ${currentArg,,} =~ ^--[a-z\-]+ ]]; then :;
+					## It's an option switch; see if the LAST required positional argument is already populated
+					if [[ -n "$expectedPositionalArg1" ]]; then
+						## Options should come before positional args
+						_fThrowError "$meName.$FUNCNAME(): Options must come before positional arguments: '$currentArg'"
+					else
+
+						## Do something with the switch, including getting next arg at "$1", testing it, and `shift`ing it off the stack if OK.
+
+
+					fi
+				else :;
+					## It's not an option switch, it's a positional arg
+					if [[ -z "$currentArg" ]]; then
+						## We shouldn't have an empty required positional arg.
+						if [[ -z "$expectedPositionalArg1" ]]; then fPrint_Copyright_About_Syntax_ThenQuit "$meName.$FUNCNAME(): Expected a positional argument."; fi
+					else
+
+						## If we made it this far, assign to a variable
+						if [[ -z "$expectedPositionalArg1" ]]; then
+							expectedPositionalArg1="$currentArg"
+						elif if [[ -z "$expectedPositionalArg2" ]]; then
+							expectedPositionalArg2="$currentArg"
+						elif [[ -n "$currentArg" ]]; then
+							fPrint_Copyright_About_Syntax_ThenQuit "$meName.$FUNCNAME(): Unknown argument encountered: '$currentArg'.";
+						fi
+
+					fi
+				fi
+				prevArg="$currentArg"
+			fi
+
+		done
+
+	fi
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function fInit_2of2(){ _fdbgEnter "$FUNCNAME";
+	##	History:
+	##		- 20190911 JC: Created
+
+	## Default values
+	if [[ -z "$expectedPositionalArg1" ]]; then expectedPositionalArg1="SOME DEFAULT"; fi
+
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function fValidate(){ _fdbgEnter "$FUNCNAME";
+	##	History:
+	##		- 20190911 JC: Created
+
+	if [[ -z "$expectedPositionalArg1" ]]; then _fThrowError "$meName.$FUNCNAME(): Variable 'expectedPositionalArg1' can't be empty."; fi
+	if [[ $_mustBeRunAsSudo -eq 1 ]] && [[ $EUID != 0 ]]; then _fThrowError "$meName.$FUNCNAME(): Must be run as sudo/root."; fi
+
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function fPrint_PrepromptInfo(){ _fdbgEnter "$FUNCNAME";
+	##	History:
+	##		- 20190911 JC: Created
+
+	## Constants
+
+	## Variables
+	local tmpStr=""
+
+	_fstrAppend_byglobal_val1=""
+	#                         X"                                                                               "X
+	_fstrAppend_byglobal "\n"  "Some attribute ......: $expectedPositionalArg1"
+	tmpStr="${_fstrAppend_byglobal_val1}"
+
+	## Final output
+	if [[ -n "${tmpStr}" ]]; then
+		_fEcho_Clean ""
+		_fEcho_Clean "${tmpStr}"
+		_fEcho_Clean ""
+	fi
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function fPromptToContinue(){ _fdbgEnter "$FUNCNAME";
+	##	History:
+	##		- 20190911 JC: Created
+
+	## Constants
+
+	local answer=""
+	_fEcho_Clean ""
+	read -p "Continue? (y/n): " answer
+	if [[ "${answer,,}" != "y" ]]; then
+		_fEcho "User aborted."
+		exit 0
+	fi
+	_fEcho_ResetBlankCounter
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function fMakeItSo(){ _fdbgEnter "$FUNCNAME";
+	##	Purpose: Main script logic, after everything has been parsed, validated, constructed, shown, promoted, etc.
+	##	History:
+	##		- 20190911 JC: Created template.
+
+
+
+	_fEcho_ResetBlankCounter
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function fPrint_Copyright_About_Syntax_ThenQuit(){ _fdbgEnter "$FUNCNAME";
+	##	History:
+	##		- 20190911 JC: Created template.
+
+	## Constants
+	local -r additionalLineOfText="$@"
+
+	fPrint_Copyright
+	fPrint_About
+	_fPrint_Syntax
+	if [[ -n "${additionalLineOfText}" ]]; then _fEcho_Clean "Error: ${additionalLineOfText}"; fi
+	exit 1
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function fCleanup(){ _fdbgEnter "$FUNCNAME" "" 0;
+	##	Purpose: Invoked once at script end, automatically by script exit/error handlers.
+	##	History:
+	##		- 20190911 JC: Created template.
+
+	_fEcho_Clean
+
+_fdbgEgress "$FUNCNAME" "" 0; }
+
+
+##############################################################################
+## Non-template, script-specific functions
+##############################################################################
+
+function fTemplate(){ _fdbgEnter "$FUNCNAME";
+	#@	Purpose:
+	#@	Arguments:
+	#@		1 [REQUIRED]: 
+	#@		2 [optional]: 
+	#@	Depends on global or parent-scope variable[s] or constant[s]:
+	#@		
+	#@	Modifies global or parent-scope variable[s]:
+	#@		
+	#@	Prints to stdout:
+	#@		
+	#@	Returns via echo to be captured:
+	#@		
+	#@	Other side-effects:
+	#@		
+	#@	Note[s]:
+	#@		- 
+	#@	Example[s]:
+	#@		1: 
+	##	History:
+	##		- 20YYMMDD JC: Created.
+
+	## Constants
+	local -i -r default_someThing=0
+
+	## Args
+	local       arg_someThing="$1"
+
+	## Variables
+
+	## Init
+
+	## Validate
+
+	## Execute
+	_fThrowError "${meName}.${FUNCNAME}(): Some error."
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function fUnitTest_ScriptSpecific(){ _fdbgEnter "$FUNCNAME";
+
+#	_fUnitTest_PrintSectionHeader fPrint_Copyright
+#	_fAssert_Eval_AreEqual                 'fMyFunction  "arg1"  "arg2"'    "Expected-Value"
+#	_fAssert_AreEqual       fMyFunction  "$(fMyFunction  "arg1"  "arg2" )"  "Expected-Value"
+
+
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##############################################################################
+##
+## GENERIC LIBRARY.
+##
+## FOR THE SAKE OF FUTURE BUGFIXES, DO NOT MODIFY BELOW THIS LINE!
+##
+## For final distribution as one file;
+##     1) Comment out the 'source ...' line below.
+##     2) Copy & past the actual full contents of the source file below it.
+##
+## To debug this script after-the-fact:
+##     1) Make sure you have access to the latest source file.
+##     2) Delete the generic contents below the 'source ...' line below.
+##     3) Uncomment the 'source ...' line below.
+##
+##############################################################################
+
+#source TEMPLATE_single-file_2-generic-library
+
+function _fUnitTest(){ _fdbgEnter "$FUNCNAME";
+
+	_fUnitTest_PrintSectionHeader _fAssert_AreEqual
+	_fAssert_AreEqual _fAssert_AreEqual "bob" "bob"
+	_fAssert_AreEqual _fAssert_AreEqual "bob" "Bob" 0
+	_fAssert_AreEqual _fAssert_AreEqual "bob" "sam" 0
+
+
+	_fUnitTest_PrintSectionHeader _fStrKeepLeftN_byecho
+	_fAssert_Eval_AreEqual '_fStrKeepLeftN_byecho "abcdefghijk"  3'  "abc"
+	_fAssert_Eval_AreEqual '_fStrKeepLeftN_byecho "abcdefghijk"  1'  "a"
+	_fAssert_Eval_AreEqual '_fStrKeepLeftN_byecho "abcdefghijk"  0'  ""
+	_fAssert_Eval_AreEqual '_fStrKeepLeftN_byecho ""            10'  ""
+	_fAssert_Eval_AreEqual '_fStrKeepLeftN_byecho ""             0'  ""
+	_fAssert_Eval_AreEqual '_fStrKeepLeftN_byecho                 '  ""
+	_fAssert_Eval_AreEqual '_fStrKeepLeftN_byecho "abcdefghijk" -1'  ""
+	_fAssert_Eval_AreEqual '_fStrKeepLeftN_byecho "abcdefghijk" 99'  "abcdefghijk"
+
+
+	_fUnitTest_PrintSectionHeader _fStrKeepRightN_byecho
+	_fAssert_Eval_AreEqual '_fStrKeepRightN_byecho "abcdefghijk"  3'  "ijk"
+	_fAssert_Eval_AreEqual '_fStrKeepRightN_byecho "abcdefghijk"  1'  "k"
+	_fAssert_Eval_AreEqual '_fStrKeepRightN_byecho "abcdefghijk"  0'  ""
+	_fAssert_Eval_AreEqual '_fStrKeepRightN_byecho ""            10'  ""
+	_fAssert_Eval_AreEqual '_fStrKeepRightN_byecho ""             0'  ""
+	_fAssert_Eval_AreEqual '_fStrKeepRightN_byecho                 '  ""
+	_fAssert_Eval_AreEqual '_fStrKeepRightN_byecho "abcdefghijk" -1'  ""
+	_fAssert_Eval_AreEqual '_fStrKeepRightN_byecho "abcdefghijk" 99'  "abcdefghijk"
+
+
+	_fUnitTest_PrintSectionHeader _fStrJustify_byecho "[shorten]"
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdef"                      "01234567890123456789012345678901"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefg"                     "01234567890123456789012345678901"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefg"                     "012345678901234567890123456789012"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefgh"                    "012345678901234567890123456789012"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefgh"                    "0123456789012345678901234567890123"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghi"                   "0123456789012345678901234567890123"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghi"                   "01234567890123456789012345678901234"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghij"                  "01234567890123456789012345678901234"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghij"                  "012345678901234567890123456789012345"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijk"                 "012345678901234567890123456789012345"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijk"                 "0123456789012345678901234567890123456"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijkl"                "0123456789012345678901234567890123456"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijkl"                "01234567890123456789012345678901234567"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijklm"               "01234567890123456789012345678901234567"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijklm"               "012345678901234567890123456789012345678"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijklmn"              "012345678901234567890123456789012345678"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijklmn"              "0123456789012345678901234567890123456789"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijklmno"             "0123456789012345678901234567890123456789"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijklmno"             "01234567890123456789012345678901234567890"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijklmnop"            "01234567890123456789012345678901234567890"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijklmnop"            "012345678901234567890123456789012345678901"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopw"           "012345678901234567890123456789012345678901"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopw"           "0123456789012345678901234567890123456789012"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopwx"          "0123456789012345678901234567890123456789012"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopwx"          "01234567890123456789012345678901234567890123"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopwxy"         "01234567890123456789012345678901234567890123"  | _fPipeAllRawStdout
+	_fStrJustify_byecho "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopwxy"         "012345678901234567890123456789012345678901234"  | _fPipeAllRawStdout
+	_fEcho_ResetBlankCounter
+
+
+	_fUnitTest_PrintSectionHeader _fStrJustify_byecho "[shorten]"
+	_fAssert_AreEqual  _fStrJustify_byecho  "$(_fStrJustify_byecho "Now would be a really good time for all honest good men to come to the aid of their ailing country")"   "Now would be a really good time for al┈┈come to the aid of their ailing country"
+
+
+	_fUnitTest_PrintSectionHeader _fStrJustify_byecho "[expand]"
+	_fAssert_AreEqual  _fStrJustify_byecho  "$(_fStrJustify_byecho                            )"   "..............................................................................."
+	_fAssert_AreEqual  _fStrJustify_byecho  "$(_fStrJustify_byecho  "[[["                     )"   "[[[ ..........................................................................."
+	_fAssert_AreEqual  _fStrJustify_byecho  "$(_fStrJustify_byecho  ""         "]]]"          )"   "........................................................................... ]]]"
+	_fAssert_AreEqual  _fStrJustify_byecho  "$(_fStrJustify_byecho  "[[["      "]]]"          )"   "[[[ ....................................................................... ]]]"
+	_fAssert_AreEqual  _fStrJustify_byecho  "$(_fStrJustify_byecho  ""         "hello"        )"  "......................................................................... hello"
+	_fAssert_AreEqual  _fStrJustify_byecho  "$(_fStrJustify_byecho  ""         "hello"        )"  "......................................................................... hello"
+	_fAssert_AreEqual  _fStrJustify_byecho  "$(_fStrJustify_byecho  "Thing 1"  "hello"        )"  "Thing 1 ................................................................. hello"
+	_fAssert_AreEqual  _fStrJustify_byecho  "$(_fStrJustify_byecho  "Thing 1"                 )"  "Thing 1 ......................................................................."
+	_fAssert_AreEqual  _fStrJustify_byecho  "$(_fStrJustify_byecho  "Thing 1"  "hello"  0 "=" )"  "Thing 1 ================================================================= hello"
+	_fAssert_AreEqual  _fStrJustify_byecho  "$(_fStrJustify_byecho  ""         "hello" 10 "=" )"  "==== hello"
+#	_fAssert_AreEqual  _fStrJustify_byecho  "$(_fStrJustify_byecho  "Thing 1"  "hello" 10 "=" )"  "==== hello"
+
+
+	_fUnitTest_PrintSectionHeader _fToInt_byecho
+	_fAssert_Eval_AreEqual '_fToInt_byecho      ""'        0
+	_fAssert_Eval_AreEqual '_fToInt_byecho     "b"'        0
+	_fAssert_Eval_AreEqual '_fToInt_byecho     "1"'        1
+	_fAssert_Eval_AreEqual '_fToInt_byecho   "-99"'      -99
+	_fAssert_Eval_AreEqual '_fToInt_byecho 1000000'  1000000
+
+
+	_fUnitTest_PrintSectionHeader _fConvert_Hex_to_Base64URL_byref
+	_fAssert_Eval_AreEqual 'tmpTst=""; _fConvert_Hex_to_Base64URL_byref tmpTst "98d51036-474e-4d31-9588-7ae8cd844c99";                                                                                             echo "${tmpTst}"'  "mNUQNkdOTTGViHrozYRMmQ=="
+	_fAssert_Eval_AreEqual 'tmpTst=""; _fConvert_Hex_to_Base64URL_byref tmpTst "e4cfa39a3d37be31c59609e807970799caa68a19bfaa15135f165085e01d41a65ba1e1b146aeb6bd0092b49eac214c103ccfa3a365954bbbe52f74a2b3620c94"; echo "${tmpTst}"'  "5M-jmj03vjHFlgnoB5cHmcqmihm_qhUTXxZQheAdQaZboeGxRq62vQCStJ6sIUwQPM-jo2WVS7vlL3Sis2IMlA=="
+	
+
+
+	_fUnitTest_PrintSectionHeader _fBlake2_Base64URL_fromString_byref
+	_fAssert_Eval_AreEqual 'tmpTst=""; _fBlake2_Base64URL_fromString_byref tmpTst ""; echo "${tmpTst}"'                                                                      "eGoC90IBWQPGxv2FJVLScpEvR0DhWEdhiobiF_cfVBnSXhAxr-5YUxOJZESTTrBLkDpoWxRIt1XVb3Aa_pvizg=="
+	_fAssert_Eval_AreEqual 'tmpTst=""; tmpfile="$(mktemp)"; touch "${tmpfile}"; _fBlake2_Base64URL_fromFileContent_byref tmpTst "${tmpfile}"; echo "${tmpTst}"'              "eGoC90IBWQPGxv2FJVLScpEvR0DhWEdhiobiF_cfVBnSXhAxr-5YUxOJZESTTrBLkDpoWxRIt1XVb3Aa_pvizg=="
+	_fAssert_Eval_AreEqual 'tmpTst=""; _fBlake2_Base64URL_fromString_byref tmpTst "hello"; echo "${tmpTst}"'                                                                 "5M-jmj03vjHFlgnoB5cHmcqmihm_qhUTXxZQheAdQaZboeGxRq62vQCStJ6sIUwQPM-jo2WVS7vlL3Sis2IMlA=="
+	_fAssert_Eval_AreEqual 'tmpTst=""; tmpfile="$(mktemp)"; echo -n "hello" > "${tmpfile}"; _fBlake2_Base64URL_fromFileContent_byref tmpTst "${tmpfile}"; echo "${tmpTst}"'  "5M-jmj03vjHFlgnoB5cHmcqmihm_qhUTXxZQheAdQaZboeGxRq62vQCStJ6sIUwQPM-jo2WVS7vlL3Sis2IMlA=="
+
+
+	_fUnitTest_PrintSectionHeader _fUUID_Base64URL_byref
+	_fAssert_Eval_AreEqual 'tmpTst=""; _fUUID_Base64URL_byref tmpTst; echo "${tmpTst}"'  "(unpredictable)"  0
+
+
+	fUnitTest_ScriptSpecific
+	_fEcho
+	_fEcho "Done."
+
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function _fBlake2_Base64URL_fromString_byref(){ _fdbgEnter "$FUNCNAME";
+	##	Purpose: Generate a base64-URL-encoded Blake2 checksum from an input string.
+	##	Input:
+	##		1 [REQUIRED]: Variable name that will be populated with result.
+	##		2 [REQUIRED]: String to generate checksum from.
+	##	Modifies:
+	##		Variable specified as first argument.
+	##	Examples:
+	##		_fBlake2_Base64URL_fromString_byref MyVariable "hello"
+	##	History:
+	##		- 20190925 JC: Created.
+
+	local -r variableName="$1"
+	local -r inputStr="$2"
+	local    returnStr=""
+	if [[ -z "${variableName}" ]]; then _fThrowError "$meName.$FUNCNAME(): No variable specified."; fi
+	returnStr="$(echo -n "${inputStr}" | b2sum --binary | grep -iPo "[0-9a-f]+")" #...........................................: Generate Blake2 checksum for input string; For integrity of results, don't eat errors!
+	_fConvert_Hex_to_Base64URL_byref returnStr "${returnStr}" #...........................................................: For integrity of results, don't eat errors!  ## For integrity of results, don't eat errors!
+	eval "${variableName}=\"${returnStr}\""
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function _fBlake2_Base64URL_fromFileContent_byref(){ _fdbgEnter "$FUNCNAME";
+	##	Purpose: Generate a base64-URL-encoded Blake2 checksum from the contents of a specified filespec.
+	##	Input:
+	##		1 [REQUIRED]: Variable name that will be populated with result.
+	##		2 [REQUIRED]: File specification to generate checksum from content.
+	##	Modifies:
+	##		Variable specified as first argument.
+	##	Examples:
+	##		_fBlake2_Base64URL_fromFileContent_byref MyVariable "${HOM$}/Downloads/download.zip"
+	##	History:
+	##		- 20190925 JC: Created.
+
+	local -r variableName="$1"
+	local -r fileSpec="$2"
+	local    blake2Checksum=""
+	local    returnStr=""
+	if [[ -z "${variableName}" ]]; then _fThrowError "$meName.$FUNCNAME(): No variable specified."; fi
+	if [[ -z "${fileSpec}" ]]; then     _fThrowError "$meName.$FUNCNAME(): No filespec specified."; fi
+	if [[ ! -f "${fileSpec}" ]]; then   _fThrowError "$meName.$FUNCNAME(): Specified file not found: '${fileSpec}'."; fi
+	head -c 10 "${fileSpec}" 1>/dev/null  ## Try this in order to error now, if it can't be read
+	blake2Checksum="$(cat "${fileSpec}" | b2sum --binary | grep -iPo "[0-9a-z]+")" #.......................................: For integrity of results, don't eat errors!
+	_fConvert_Hex_to_Base64URL_byref returnStr "${blake2Checksum}" #......................................................: For integrity of results, don't eat errors!
+	eval "${variableName}=\"${returnStr}\""
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function _fUUID_Base64URL_byref(){ _fdbgEnter "$FUNCNAME";
+	##	Purpose: Generates a base64-URL-encoded UUID v4 (random).
+	##	Input:
+	##		1 [REQUIRED]: Variable name that will be populated with result.
+	##	Usage examples:
+	##		_fUUID_Base164URL MyVar
+	##	History:
+	##		- 20190925 JC: Created.
+
+	local -r variableName="$1"
+	local    returnStr=""
+	if [[ -z "${variableName}" ]]; then _fThrowError "$meName.$FUNCNAME(): No variable specified."; fi
+	returnStr="$(uuid -v 4 )" #............................................................................................: For integrity of results, don't eat errors!
+	_fConvert_Hex_to_Base64URL_byref returnStr "${returnStr}" #...........................................................: For integrity of results, don't eat errors!
+	eval "${variableName}=\"${returnStr}\""
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function _fConvert_Hex_to_Base64URL_byref(){ _fdbgEnter "$FUNCNAME";
+	##	Purpose:
+	##		- Converts a hex string to binary, then binary to base64-URL-encoded string (per per RFC 4648 § 5).
+	##		- Ignores dashes (works on UUID strings).
+	##	Input:
+	##		1 [REQUIRED]: Variable name that will be populated with result.
+	##	Usage examples:
+	##		_fConvert_Hex_to_Base64URL_byref MyVar "aaff1209"
+	##	History:
+	##		- 20190925 JC: Created.
+
+	local -r variableName="$1"
+	local -r inputStr="$2"
+	local returnStr_ch2b=
+	if [[ -n "${inputStr}" ]]; then
+		if [[ ! ${inputStr,,} =~ ^[\-a-f0-9]+$ ]]; then _fThrowError "$meName.$FUNCNAME(): Invalid hexadecimal string: '${inputStr}'."; fi
+		returnStr_ch2b="$(echo -n "${inputStr,,}" | xxd -r -p | base64 -w 0)" #........................................: Convert hex to binary, then binary to base64; For integrity of results, don't eat errors!
+		returnStr_ch2b="${returnStr_ch2b//+/-}" #......................................................................: Replace "+" with "-", per RFC 4648 § 5
+		returnStr_ch2b="${returnStr_ch2b//\//_}" #.....................................................................: Replace "/" with "_", per RFC 4648 § 5
+	#	returnStr_ch2b="${returnStr_ch2b//=/}" #.......................................................................: Remove optional base64 padding chars
+	fi
+	eval "${variableName}=\"${returnStr_ch2b}\""
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function _fToInt_byecho(){ _fdbgEnter "$FUNCNAME" "" 1;
+
+	##	Purpose: Converts any input to an integer (zero if there's any problem).
+	local input="$@"
+	local -i retVal=0
+	if [[ -n "${input}" ]]; then
+		if [[ $input =~ ^-?[0-9]+$ ]]; then
+			retVal=$input 2>/dev/null || true
+		fi
+	fi
+	echo $retVal
+
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+function _fStrSearchAndReplace_byecho(){ _fdbgEnter "$FUNCNAME" "" 1;
+	##	Purpose: For every match in a string, substitutes a replacement.
+	##	Input:
+	##		- Source string.
+	##		- Search substring.
+	##		- Replacement substring.
+	##	Returns:
+	##		Modified string via echo. Capture with: MyVariable="$(_MyFunction "MyArg1" ...etc...)"
+	##	Notes:
+	##		- Case-sensitve
+	##		- Performons only ONE pass - can't get stuck in a loop.
+	##		- Uses sed and tr for more robustness.
+	##	TODO:
+	##		Make sure can handle random strings with double quotes in them (as opposed to singular double quotes).
+	##	History:
+	##		- 20160906 JC: Rewrote from scratch to:
+	##			- Only make one pass.
+	##			- Use 'sed' instead of bash variable expansion, for more robust handling of:
+	##				- Double quotes.
+	##				- Escaped characters such as \n.
+	##		- 20170308 JC: Use bash variable expansion to bypass frustrating sed time-sink / bug.
+	##		- 20190920 JC: Improved function header comments.
+
+	## Input
+	local vlsString="$1"
+	local vlsFind="$2"
+	local vlsReplace="$3"
+
+	## Temp replacements to avoid problems and trades speed for robustness
+	vlsString="$(_fLegacy_pStrOps_TempReplacements_byecho  "forward" "${vlsString}")"
+	vlsFind="$(_fLegacy_pStrOps_TempReplacements_byecho    "forward" "${vlsFind}")"
+	vlsReplace="$(_fLegacy_pStrOps_TempReplacements_byecho "forward" "${vlsReplace}")"
+
+	## Do the replacing
+	vlsString="$(echo "${vlsString//${vlsFind}/${vlsReplace}}")"
+
+	## Reverse temp replacements
+	vlsString="$(_fLegacy_pStrOps_TempReplacements_byecho "reverse" "${vlsString}")"
+
+	echo -e "${vlsString}"
+
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+function fEscapeStr_byecho(){ _fdbgEnter "$FUNCNAME" "" 1;
+	#@	Purpose:
+	#@		- Escapes a string so that quotes, asterisks, etc. won't screw up SQL, Windows filenames, eval, etc.
+	#@		- Many of those things are valid Linux filenames but will break other stuff.
+	#@	Arg .......: A string to escape.
+	#@	Echos .....: Updated string.
+	#@	Example ...: MyVariable="$(fEscapeStr_byecho "Some input string that might have wonky characters that break filenames, SQL, or eval")"
+	#@	History:
+	#@		- 20191008 JC: Created by copying and modifying fLegacy_escapeOrUnStStr_byecho().
+	local valStr="$1"
+	valStr="$( echo -e "${valStr}" | sed ':a;N;$!ba;s/\n/⌁▸newline◂⌁/g'     2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed 's*\"*⌁▸dquote◂⌁*g'                2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed "s/'/⌁▸squote◂⌁/g"                 2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed 's/`/⌁▸backtick◂⌁/g'               2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed 's*\t*⌁▸tab◂⌁*g'                   2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed 's*\\*⌁▸backslash◂⌁*g'             2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed "s/\*/⌁▸asterisk◂⌁/g"              2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed "s/\?/⌁▸questionmark◂⌁/g"          2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed "s/|/⌁▸pipe◂⌁/g"                   2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed "s/</⌁▸lthan◂⌁/g"                  2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed "s/>/⌁▸gthan◂⌁/g"                  2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed 's/\$(/⌁▸dollarlparen◂⌁/g'         2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed 's/\$/⌁▸dollarl◂⌁/g'               2>/dev/null || true)"
+	echo "${valStr}"
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+function fUnEscapeStr_byecho(){ _fdbgEnter "$FUNCNAME" "" 1;
+	#@	Purpose:
+	#@		- Escapes a string so that quotes, asterisks, etc. won't screw up SQL, Windows filenames, eval, etc.
+	#@		- Many of those things are valid Linux filenames but will break other stuff.
+	#@	Arg .......: A string to undo the effects of fEscapeStr_byecho().
+	#@	Echos .....: Updated string.
+	#@	History:
+	#@		- 20191008 JC: Created by copying and modifying fLegacy_escapeOrUnStStr_byecho().
+	local      valStr="$1"
+	valStr="$( echo -e "${valStr}" | sed 's*⌁▸newline◂⌁*\n*g'               2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed 's*⌁▸dquote◂⌁*\"*g'                2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed "s/⌁▸squote◂⌁/'/g"                 2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed 's/⌁▸backtick◂⌁/`/g'               2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed 's*⌁▸tab◂⌁*\t*g'                   2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed 's*⌁▸backslash◂⌁*\\*g'             2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed "s/⌁▸asterisk◂⌁/\*/g"              2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed "s/⌁▸questionmark◂⌁/\?/g"          2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed "s/⌁▸pipe◂⌁/|/g"                   2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed "s/⌁▸lthan◂⌁/</g"                  2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed "s/⌁▸gthan◂⌁/>/g"                  2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed 's/⌁▸dollarlparen◂⌁/\$(/g'         2>/dev/null || true)"
+	valStr="$( echo -e "${valStr}" | sed 's/⌁▸dollarl◂⌁/\$/g'               2>/dev/null || true)"
+	echo "${valStr}"
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+function _fIndent_abs_pipe(){ _fdbgEnter "$FUNCNAME" "" 1;
+	##	Purpose: Meant to be used on right side of pipe, to first unindent stdout, then indent to specified number of spaces.
+	##	Input (besides stout):
+	##		1 [REQUIRED]: Number of spaces to indent.
+	##	Output: stdout
+	##	Usage examples
+	##		- ls -lA . | _fIndent_abs_pipe 2
+	##	History:
+	##		- 20190903 JC: Created.
+	##		- 20190920 JC: Improved function header comments.
+
+	sed -e 's/^[ \t]*//' | sed "s/^/$(printf "%${1}s")/"
+
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+function _fIndent_rltv_pipe(){ _fdbgEnter "$FUNCNAME" "" 1;
+	##	Purpose: Meant to be used on right side of pipe, to first unindent stdout, then indent to specified number of spaces.
+	##	Input (besides stout):
+	##		1 [REQUIRED]: Number of spaces to indent.
+	##	Output: stdout
+	##	Usage examples
+	##		- ls -lA . | _fIndent_rltv_pipe 2
+	##	History:
+	##		- 20190925 JC: Created by copying _fPipe_Indent_abs_absolute1
+
+	sed "s/^/$(printf "%${1}s")/"
+
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+function _fStrJustify_byecho(){ _fdbgEnter "$FUNCNAME" "" 1;
+	#@	Purpose:
+	#@		- Left and right-justifies one or two strings.
+	##		- Also doesn't allow the final output to go over specified columns. If it does, the minimum padding witdh is inserted in between a result split in the middle.
+	#@	Arguments:
+	#@		1 [optional]: String on left
+	#@		2 [optional]: String on right
+	#@		3 [optional]: Maximum width (default:79)
+	#@		4 [optional]: String to pad in between with, usually just one character (default ".")
+	#@	Returns via echo: Right-justified string
+	##	History:
+	##		- 20190925 JC: Created.
+	##	TODO:
+	##		- Figure out a better solution for too-long strings, other than cutting the middle out of the LEFT string.
+	##		- Solution must:
+	##			- Put "┈" in the middle (rather than just the left as currently), if both strings are > 1/2 max.
+	##			- If any stirng is too long
+
+	## Constants
+	local -r -i default_rightmostCol=79
+	local -r    default_padStr="."
+	local -r    splitStrIndicatorIfTooLong="┈┈"
+
+	## Args
+	local       leftStr="$1"
+	local       rightStr="$2"
+	local    -i maxWidth=$(_fToInt_byecho $3)
+	local       padStr="$4"
+
+	## Variables
+	local       printfCommand=""
+	local       wholePad=""
+	local    -i extraPlacesToRemove=0
+	local    -i totalCharsFromPadToRemove=0
+	local    -i maxHypotheticalWidth=0
+	local    -i lenLeftPart=0
+	local    -i lenRightPart=0
+	local       tmpStr=""
+	local       tmpPadStr=""
+	local       returnStr=""
+
+	## Init; default values
+	if [[ -z "${maxWidth}" ]] || [[ ! ${maxWidth} =~ [0-9]+ ]] || [[ "${maxWidth}" == "0" ]]; then maxWidth="${default_rightmostCol}"; fi
+	if [[ -z "${maxWidth}" ]] || [[ ! ${maxWidth} =~ [0-9]+ ]] || [[ "${maxWidth}" == "0" ]]; then maxWidth="${default_rightmostCol}"; fi
+	if [[ -z "${padStr}" ]]; then padStr="${default_padStr}"; fi
+
+	## Figure out if string is too long
+	maxHypotheticalWidth=$((${#leftStr} + 1 + ${#rightStr}))
+	tooLongBy=$((maxHypotheticalWidth - maxWidth))
+
+#_fEchoVarAndVal leftStr
+#_fEchoVarAndVal rightStr
+#_fEchoVarAndVal maxHypotheticalWidth
+#_fEchoVarAndVal tooLongBy
+
+	if [[ ${tooLongBy} -gt 0 ]]; then
+
+		## Update these values for inclusion of $splitStrIndicatorIfTooLong
+		maxHypotheticalWidth=$((${#leftStr} + ${#splitStrIndicatorIfTooLong} + ${#rightStr}))
+		tooLongBy=$((maxHypotheticalWidth - maxWidth))
+		if [[ $tooLongBy -le 0 ]]; then tooLongBy=0; fi
+
+		## The total output will be too long. Split the longest string in half and put $splitStrIndicatorIfTooLong in between.
+		if [[ ${#rightStr} -gt ${#leftStr} ]]; then  ## If equal, left 
+			tmpStr="${rightStr}"
+		else
+			tmpStr="${leftStr}"
+		fi
+
+		## Split the longest string in half, and only for that longest string, hack off some of the right part of left half, and some of the left part of right half
+			## Split the longest string in half. Round first half up; but Bash integer math always rounds down; this trick rounds up.
+				#### result=$(( (numerator  + (denominator - 1) / denomonator) ))
+				lenLeftPart=$(( (${#tmpStr} + 1               ) / 2            ))
+				    ##Eg 13=$(( (25         + 1               ) / 2            ))
+				## Now trim half of the overage off from left half, also rounding up (which evens it out)
+				lenLeftPart=$(( lenLeftPart - ((tooLongBy+1)/2) ))
+			## Round second half down; Bash always does this anyway
+				## (( result=$(( (numerator  / denomonator) ))
+				lenRightPart=$(( (${#tmpStr} / 2          ) ))
+				   ##Eg   12=$(( (25         / 2          ) ))
+				## Now trim half of the overage off from left half, also rounding up (which evens it out)
+				lenRightPart=$(( lenRightPart - (tooLongBy/2) ))
+			## Build the splint string
+			tmpStr="$(_fStrKeepLeftN_byecho "${tmpStr}" ${lenLeftPart})${splitStrIndicatorIfTooLong}$(_fStrKeepRightN_byecho "${tmpStr}" ${lenRightPart})"
+
+		## Replace longest string with the split result
+		if [[ ${#rightStr} -gt ${#leftStr} ]]; then
+			rightStr="${tmpStr}"
+		else
+			leftStr="${tmpStr}"
+		fi
+	fi
+
+#_fEchoVarAndVal leftStr
+#_fEchoVarAndVal rightStr
+
+	printfCommand="printf '${padStr}%.0s' {1..${maxWidth}}"
+	wholePad="$(eval "${printfCommand}")"
+	if [[ -n "${leftStr}" ]]   && [[ $tooLongBy -le 0 ]]; then leftStr="${leftStr} "; fi
+	if [[ -n "${rightStr}" ]]  && [[ $tooLongBy -le 0 ]]; then rightStr=" ${rightStr}"; fi
+	totalCharsFromPadToRemove=$((${#leftStr} + ${#rightStr}))
+	tmpPadStr="${wholePad:$totalCharsFromPadToRemove}"
+	if [[ -z "${tmpPadStr}" ]] && [[ -n "${leftStr}" ]] && [[ -n "${rightStr}" ]]; then
+		tmpPadStr=" "
+	fi
+	returnStr="${leftStr}${tmpPadStr}${rightStr}"
+
+	## This logic isn't always correct, and isn't even really a good overall idea (at least for too long strings); so just in case, crop to max chars len
+	returnStr="$(_fStrKeepLeftN_byecho "${returnStr}" ${maxWidth})"
+
+#_fEchoVarAndVal padStr
+#_fEchoVarAndVal maxWidth
+#_fEchoVarAndVal wholePad
+#_fEchoVarAndVal totalCharsFromPadToRemove
+#_fEchoVarAndVal leftStr
+#_fEchoVarAndVal tmpPadStr
+#_fEchoVarAndVal rightStr
+#_fEchoVarAndVal returnStr
+#return
+
+	echo "${returnStr}"
+
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+function _fStrKeepLeftN_byecho(){ _fdbgEnter "$FUNCNAME" "" 1;
+	##	History:
+	##		- 20190925 JC: Created.
+
+	local -r    inputStr="$1"
+	local    -i numberOfCharacters=$(_fToInt_byecho $2)
+	local       returnVal=""
+	if [[ ${numberOfCharacters} -le 0 ]]; then
+		returnVal=""
+	elif [[ ${numberOfCharacters} -ge ${#inputStr} ]]; then
+		returnVal="${inputStr}"
+	else
+		returnVal="${inputStr::${numberOfCharacters}}"
+	fi
+	echo "${returnVal}"
+
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+function _fStrKeepRightN_byecho(){ _fdbgEnter "$FUNCNAME" "" 1;
+	##	History:
+	##		- 20190925 JC: Created.
+
+	local -r    inputStr="$1"
+	local    -i numberOfCharacters=$(_fToInt_byecho $2)
+	local       returnVal=""
+	if [[ ${numberOfCharacters} -le 0 ]]; then
+		returnVal=""
+	elif [[ ${numberOfCharacters} -ge ${#inputStr} ]]; then
+		returnVal="${inputStr}"
+	else
+		returnVal="${inputStr:(-${numberOfCharacters})}"
+	fi
+	echo "${returnVal}"
+
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+function _fStrTrim_byecho(){ _fdbgEnter "$FUNCNAME" "" 1;
+	##	Purpose: Strip off leading and trailing whitespace from a string.
+	##	Input:
+	##		1 [REQUIRED]: String to trim.
+	##	Returns:
+	##		Modified string via echo. Capture with: MyVariable="$(_MyFunction "MyArg1" ...etc...)"
+	##	History:
+	##		- 20190826 JC: Created by copying from 0_library_v2.
+	##		- 20190920 JC: Improved function header comments.
+
+	local inputStr="$@"
+	if [[ -n "${inputStr}" ]]; then
+		outputStr="$(echo -e "${inputStr}" | sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' 2>/dev/null || true)"
+	fi
+	echo -n "${outputStr}"
+
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+function _fStrNormalize_byecho(){ _fdbgEnter "$FUNCNAME" "" 1;
+	##	Purpose:
+	##		- Strips leading and trailing spaces from string.
+	##		- Changes all whitespace inside a string to single spaces.
+	##	Input:
+	##		1 [REQUIRED]: String to normalize
+	##	Returns:
+	##		Modified string via echo. Capture with: MyVariable="$(_MyFunction "MyArg1" ...etc...)"
+	##	References:
+	##		- https://unix.stackexchange.com/a/205854
+	##	History:
+	##		- 20190701 JC: Created
+	##		- 20190724 JC: Didn't work on newlines. Fixed.
+	##		- 20190920 JC: Improved function header comments.
+
+	local argStr="$@"
+	argStr="$(echo -e "${argStr}")" #.................................................................. Convert \n and \t to real newlines, etc.
+	argStr="${argStr//$'\n'/ }" #...................................................................... Convert newlines to spaces
+	argStr="${argStr//$'\t'/ }" #...................................................................... Convert tabs to spaces
+	argStr="$(echo "${argStr}" | awk '{$1=$1};1' 2>/dev/null || true)" #............................... Collapse multiple spaces to one and trim
+	argStr="$(echo "${argStr}" | sed 's/^[[:blank:]]*//;s/[[:blank:]]*$//' 2>/dev/null || true)" #..... Additional trim
+	echo "${argStr}"
+
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+declare _fstrAppend_byglobal_val=""
+function _fstrAppend_byglobal(){ _fdbgEnter "$FUNCNAME";
+	##	Purpose:
+	##		- Appends arg1 to the string value in global variable _fstrAppend_byglobal_val, 
+	##		  with arg2 as a delimiter if necessary.
+	##		- Continues whether or not value in arg1 is empty, or arg3 is empty.
+	##		- Pros and cons of this approach (modifying a dedicated global variable):
+	##			- Pro: Is more efficient for highly iterative uses, than the multiple unnecessary str copies of the "echo" method.
+	##			- Pro: Won't error on some characters such as the "eval" method.
+	##			- Con: A single global variable means you can't call this to build more than one string at a time.
+	##			- Con: Is inelegant.
+	##	Input:
+	##		1 [optional]: String to first append with, if existing contents aren't empty. (e.g. space, comma, newline)
+	##		2 [optional]: String to append.
+	##	Modifies:
+	##		_fstrAppend_byglobal_val
+	##	Examples:
+	##		_fstrAppend_byglobal_val=""  ##....................... Clear _fstrAppend_byglobal_val
+	##		_fstrAppend_byglobal "\n"  "First in the list!"  ##... Append a string
+	##		_fstrAppend_byglobal "\n"  "Next in the list!"  ##.... Append another string
+	##		MyStr="${_fstrAppend_byglobal_val}"  ##............... Copy result to local variable
+	##	History:
+	##		- 20190826 JC: Created by copying from 0_library_v2.
+	##		- 20190920 JC: Added error checking of variable name.
+	##		- 20190926 JC: Copied _fstrAppend_1() and converted from "eval" to "global" approach, due to errors.
+
+	## Constants
+
+	## Args
+	local -r appendFirstIfExistingNotEmpty="$1"
+	local -r appendStr="$2"
+
+	## Append (written this way to be a little faster for highly iterative uses
+	if [[ -z "${_fstrAppend_byglobal_val}" ]]; then
+		_fstrAppend_byglobal_val="${appendStr}"
+	else
+		_fstrAppend_byglobal_val="${_fstrAppend_byglobal_val}${appendFirstIfExistingNotEmpty}${appendStr}"
+	fi
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function _fstrAppend_DEPRECATED_byref(){ _fdbgEnter "$FUNCNAME";
+	##	Purpose:
+	##		- Exists for legacy purposes. Don't use it, it's prone to barfing on some input due to "eval".
+	##		- Use _fstrAppend_byglobal() instead.
+	##	Input:
+	##		1 [REQUIRED]: Variable name to populate.
+	##		2 [optional]: String to first append with, if existing contents aren't empty. (e.g. space, comma, newline)
+	##		3 [optional]: String to append.
+	##	Modifies:
+	##		Variable specified by name as arg1.
+	##	Examples:
+	##		_fstrAppend_byglobal  MyVariable  "\n"  "First in the list!"  ##... Append a string
+	##		_fstrAppend_byglobal  MyVariable  "\n"  "Next in the list!"  ##.... Append another string
+	##	History:
+	##		- 20190826 JC: Created by copying from 0_library_v2.
+	##		- 20190920 JC: Added error checking of variable name.
+
+	_fEcho_Clean "$meName.$FUNCNAME(): This function is depreciated due to reliance on 'eval'. Refactor to use _fstrAppend_byglobal()."
+
+	## Args
+	local -r variableName="$1"
+	local -r appendFirstIfExistingNotEmpty="$2"
+	local -r appendStr="$3"
+
+	## Validate
+	if [[ -z "${variableName}" ]]; then _fThrowError "$meName.$FUNCNAME(): No variable specified."; fi
+
+	## Variables
+	local valStr="${!variableName}"
+
+	## Append to variable who's name is stored in $variableName
+	if [[ -n "${valStr}" ]]; then valStr="${valStr}${appendFirstIfExistingNotEmpty}"; fi
+	valStr="${valStr}${appendStr}"
+	eval "${variableName}=\"${valStr}\""
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+function _fNormalizeDir_byecho(){ _fdbgEnter "$FUNCNAME" "" 1;
+	##	Purpose:
+	##		- Given a folder path as a string, normalizes it.
+	##		- It doesn't have to exist already.
+	##		- And makes sure it has exactly one ending "/" (even if root).
+	##	Input:
+	##		1 [REQUIRED]: Folder path.
+	##	Output:
+	##		Modified value via echo.
+	##	Examples:
+	##		MyVariable="$(_fNormalizePath_byecho "/etc /x")"
+	##	History:
+	##		- 20190923 JC: Created.
+	##		- 20190925 JC: Changed from 'byref' (eval) to 'byval' (echo), because eval barfs on many valid filename characters (e.g. "`", "$(", etc.)
+
+	local strVal="$1"
+	strVal="$(_fNormalizePath_byecho "${strVal}")"
+	strVal="${strVal}/"
+	strVal="${strVal//\/\//\/}"  #.... Replace two slashes with one, just in case
+	echo "${strVal}"
+
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+function _fNormalizePath_byecho(){ _fdbgEnter "$FUNCNAME" "" 1;
+	##	Purpose:
+	##		- Given a file or folder path as a string, normalizes it.
+	##		- It doesn't have to exist already.
+	##		- And makes sure it has exactly one ending "/" (even if root).
+	##	Input:
+	##		1 [REQUIRED]: Folder path.
+	##	Output:
+	##		Modified value via echo.
+	##	Examples:
+	##		MyVariable="$(_fNormalizePath_byecho "/etc/x.rdp")"
+	##	History:
+	##		- 20190826 JC: Created by copying from 0_library_v2.
+	##		- 20190925 JC: Changed from 'byref' (eval) to 'byval' (echo), because eval barfs on many valid filename characters (e.g. "`", "$(", etc.)
+
+	local strVal="$1"
+	local loop_PreviousStr=""
+	while [[ "${strVal}" != "${loop_PreviousStr}" ]]; do
+		loop_PreviousStr="${strVal}"
+		strVal=${strVal//$'\n'/ } #............................................................. Replace newlines
+		strVal=${strVal//$'\t'/ } #............................................................. Replace tabs with spaces
+		strVal="$(echo "${strVal}" | sed 's#\\#/#g' 2>/dev/null || true)" #..................... Convert backslashes to forward slashes
+		strVal="$(echo "${strVal}" | sed 's#/ #/#g' | sed 's# /#/#g' 2>/dev/null || true)" #.... Remove space before and after slashes
+		strVal="$(echo "${strVal}" | sed 's#//#/#g' 2>/dev/null || true)" #..................... Replace two backslashes with one
+		strVal="${strVal%/}" #.................................................................. Trim trailing slash
+		strVal="$(_fStrTrim_byecho "${strVal}")" #.................................................... Trim leading and trailing whitespace
+	done
+	echo "${strVal}"
+
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+function _fMustBeInPath(){ _fdbgEnter "$FUNCNAME";
+	##	History:
+	##		- 20190826 JC: Created by copying from 0_library_v2.
+
+	local -r programToCheckForInPath="$1"
+	if [[ -z "${programToCheckForInPath}" ]]; then
+		_fThrowError "_fMustBeInPath(): Not program specified."
+	elif [[ -z "$(which ${programToCheckForInPath} 2>/dev/null || true)" ]]; then
+		_fThrowError "Not found in path: ${programToCheckForInPath}"
+	fi
+
+_fdbgEgress "$FUNCNAME"; }
+
+
+##############################################################################
+##	Echo-related stuff.
+##	History:
+##		- 20190911 JC: Created (mostly by copying TEMPLATE_v*
+##############################################################################
+declare -i _wasLastEchoBlank=0
+function _fPipeAllRawStdout(){
+	if [[ $doDebug -eq 1 ]] && [[ $_dbgNestLevel -ge 0 ]]; then
+		## Send this to stdout before stdin; it indents each streaming line by (_dbgNestLevel *_dbgIndentEachLevelBy)
+		sed "s/^/$(printf "%$((_dbgNestLevel * _dbgIndentEachLevelBy))s")/"
+	else
+		cat  ## Send stdin to stdout
+	fi
+}
+function _fEcho_ResetBlankCounter(){
+	_wasLastEchoBlank=0;
+}
+function _fEcho_Clean(){
+	if [[ -n "$1" ]]; then
+		#echo -e "$@" | fold -s -w $(tput cols)  ## Break on words, rather than arbitrarily.
+		echo -e "$@" | _fPipeAllRawStdout
+		_wasLastEchoBlank=0
+	else
+		if [[ $_wasLastEchoBlank -eq 0 ]]; then echo; fi
+		_wasLastEchoBlank=1
+	fi
+}
+function _fEcho(){
+	if [[ -n "$@" ]]; then
+		_fEcho_Clean "[ $@ ]"
+	else
+		_fEcho_Clean ""
+	fi
+}
+function _fEcho_Force(){
+	_fEcho_ResetBlankCounter
+	_fEcho "$@"
+}
+function _fEcho_Clean_Force(){
+	_fEcho_ResetBlankCounter
+	_fEcho_Clean "$@"
+}
+function _fEchoVarAndVal(){
+	local -r varName="$1"
+	local -r optionalPrefix="$2"
+#	_fEcho_Clean "$(_fStrJustify_byecho "${optionalPrefix}${varName}" "'${!varName}'")"
+	_fEcho_Clean "${optionalPrefix}${varName} = '${!varName}'"
+}
+
+
+##############################################################################
+##	Unit-testing-related stuff
+##	History:
+##		- 20190925 JC: Created.
+##############################################################################
+function _fUnitTest_PrintSectionHeader(){
+	local -r sectionHeader="###############################################################################"
+	_fEcho_Clean
+	_fEcho_Clean "${sectionHeader}"
+	_fEcho_Clean "### $@"
+	_fEcho_Clean "${sectionHeader}"
+	_fEcho_Clean
+}
+function _fAssert_Eval_AreEqual(){
+	#@	Purpose: Tests two input values: A string to display and evaluate, and an expected result.
+	#@	Arguments:
+	#@		1 [REQUIRED]: Command to evaluate.
+	#@		2 [REQUIRED]: Expected result.
+	#@		3 [optional]: 1 (default) if results are expected to be the same, 0 if different.
+	#@	Prints to stdout, something like:
+	#@		"Eval ..........: 'MyFunctionOrCommand "arg1" "etc"'
+	#@		"Test result ...: 'string'
+	#@		"Expected ......: 'string'
+	#@		"Are same ......: True|False ............ PASS|FAIL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+	#@	Note[s]:
+	#@		- 
+	#@	Example[s]:
+	#@		1: _fAssert_Eval_AreEqual  "some command"  "Expected output"
+	##	History:
+	##		- 20190925 JC: Created by copying _fAssert_AreEqual().
+
+	## Args
+	local -r    evalStr="$1"
+	local -r    expectedResult="$2"
+	local       shouldBeSame=$3  ## Don't make this an integer, or else default values won't work
+
+	## Constants
+	local outputStr=""
+	_dbgTemporarilyDisableEcho=1
+		outputStr="$(eval "${evalStr}")"
+	_dbgTemporarilyDisableEcho=0
+
+	## Compare
+	_fAssert_AreEqual "${evalStr}" "${outputStr}" "${expectedResult}" "${shouldBeSame}"
+
+}
+function _fAssert_AreEqual(){
+	#@	Purpose: Tests two input values. Displays them both (escaped) and whether they are equal.
+	#@	Arguments:
+	#@		1 [REQUIRED]: Function name and/or args
+	#@		2 [REQUIRED]: String to test
+	#@		3 [REQUIRED]: Expected value
+	#@		4 [optional]: 1 (default) if results are expected to be the same, 0 if different.
+	#@	Prints to stdout, something like:
+	#@		"Function ......: fMyFunction"
+	#@		"Test result ...: 'string'
+	#@		"Expected ......: 'string'
+	#@		"Are same ......: True|False ............ PASS|FAIL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+	#@		"Are same ......: True|False ............ PASS|FAIL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+	#@	Note[s]:
+	#@		- 
+	#@	Example[s]:
+	#@		1: _fAssert_AreEqual  "$(some command)"  "Expected output"
+	##	History:
+	##		- 20190925 JC: Created.
+
+	## Args
+	local -r    callingFunction="$1"
+	local -r    input1="$2"
+	local -r    input2="$3"
+	local       shouldBeSame=$4  ## Don't make this an integer, or else default values won't work
+
+	## Variables
+	local       outputStr=""
+	local       areSame=""
+	local    -i doThrowError=0
+
+	## Init; defaults
+	if [[ -z "${shouldBeSame}" ]] || [[ ! ${shouldBeSame} =~ [01] ]]; then
+		shouldBeSame=1
+	fi
+
+	## Init; equal or not, and pass or fail
+	if [[ ${shouldBeSame} -eq 1 ]]; then
+		## They are expected to equal
+		if [[ "${input1}" == "${input2}" ]]; then
+			## And they do equal (good)
+			areSame="True......................PASS"
+		else
+			## But they DONT equal (bad)
+			areSame="False.....................FAIL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+			doThrowError=1
+		fi
+	else
+		## They are expected to NOT equal
+		if [[ "${input1}" == "${input2}" ]]; then
+			## But they DO equal (bad)
+			areSame="True (as NOT expected)....FAIL !!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+			doThrowError=1
+		else
+			## And they DONT equal (good)
+			areSame="False (as expected).......PASS"
+		fi
+	fi
+
+	## Makeitso
+	outputStr="${outputStr}Function ......: '${callingFunction}'\n"
+	outputStr="${outputStr}Test result ...: '$(fLegacy_escapeOrUnStStr_byecho "${input1}")'\n"
+	outputStr="${outputStr}Expected ......: '$(fLegacy_escapeOrUnStStr_byecho "${input2}")'\n"
+	outputStr="${outputStr}Are same ......: ${areSame}"
+	_fEcho_Clean
+	_fEcho_Clean "${outputStr}"
+	_fEcho_Clean
+
+	if [[ $doThrowError -eq 1 ]]; then _fThrowError; fi
+}
+
+
+function _fLegacy_pStrOps_TempReplacements_byecho(){ _fdbgEnter "$FUNCNAME" "" 1;
+	##	Does one of the following, depending on value of 'operation' argument:
+	##		- Replaces stuff in a string that causes problems with some GNU utils, with unique temp strings that don't.
+	##		- Undoes it.
+	##	Input:
+	##		1 [REQUIRED]: Operation (forward|reverse)
+	##		2 [REQUIRED]: String
+	##	Returns:
+	##		Modified string via echo. Capture with: MyVariable="$(_MyFunction "MyArg1" ...etc...)"
+	##	History:
+	##		- 20170308 JC:
+	##			- Fixed error handling.
+	##			- Added replacing "*", "?", "#", and brackets.
+	##		- 20190920 JC:
+	##			- Changed 'operation' from a varialbe to be set by caller, to first arg.
+	##		- 20190920 JC: Improved function header comments.
+	##		- 20190925 jc: Added |, <, >, $(, $
+
+	local -r operation="$1"
+	local vlsString="$2"
+
+	if [[ "${operation,,}" == "forward" ]]; then :;
+		#vlsString="$( echo -e "${vlsString}" | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/_PLACEHOLDER_19544526_NEWILNE_/g' )"
+		vlsString="$( echo -e "${vlsString}" | sed ':a;N;$!ba;s/\n/_PLACEHOLDER_19544526_NEWILNE_/g' )"
+		vlsString="$( echo -e "${vlsString}" | sed 's*\"*_PLACEHOLDER_44757925_DQUOTE_*g' )"
+		vlsString="$( echo -e "${vlsString}" | sed "s/'/_PLACEHOLDER_66824699_SQUOTE_/g" )"
+		vlsString="$( echo -e "${vlsString}" | sed 's*\t*_PLACEHOLDER_54743014_TAB_*g' )"
+		vlsString="$( echo -e "${vlsString}" | sed 's*\.*_PLACEHOLDER_24165191_DOT_*g' )"
+		vlsString="$( echo -e "${vlsString}" | sed 's*\\*_PLACEHOLDER_99358465_BACKSLASH_*g' )"
+		vlsString="$( echo -e "${vlsString}" | sed 's*/*_PLACEHOLDER_66037559_fWDSLASH_1*g' )"  ## Can substitute any character for "/" delimiter in sed.
+		vlsString="$( echo -e "${vlsString}" | sed "s/\*/_PLACEHOLDER_62469349_ASTERISK_/g" )"
+		vlsString="$( echo -e "${vlsString}" | sed "s/\?/_PLACEHOLDER_83569350_QUESTION_/g" )"
+		vlsString="$( echo -e "${vlsString}" | sed "s/#/_PLACEHOLDER_8344569350_POUND_/g" )"
+		vlsString="$( echo -e "${vlsString}" | sed "s/\[/_PLACEHOLDER_8344350_LBRACKET_/g" )"
+		vlsString="$( echo -e "${vlsString}" | sed "s/\]/_PLACEHOLDER_8344350_RBRACKET_/g" )"
+		vlsString="$( echo -e "${vlsString}" | sed "s/|/_PLACEHOLDER_234350_PIPE_/g")"
+		vlsString="$( echo -e "${vlsString}" | sed "s/</_PLACEHOLDER_4349351_LESSTHAN_/g")"
+		vlsString="$( echo -e "${vlsString}" | sed "s/>/_PLACEHOLDER_93249357_GREATERTHAN_/g")"
+		vlsString="$( echo -e "${vlsString}" | sed 's/\$(/_PLACEHOLDER_452493548_DOLLAR_LPAREN_/g')"
+		vlsString="$( echo -e "${vlsString}" | sed 's/\$/_PLACEHOLDER_152496547_DOLLAR_/g')"
+
+	elif [[ "${operation,,}" == "reverse" ]]; then :;
+		vlsString="$( echo -e "${vlsString}" | sed 's*_PLACEHOLDER_19544526_NEWILNE_*\n*g' )"
+		vlsString="$( echo -e "${vlsString}" | sed 's*_PLACEHOLDER_44757925_DQUOTE_*\"*g' )"
+		vlsString="$( echo -e "${vlsString}" | sed "s/_PLACEHOLDER_66824699_SQUOTE_/'/g" )"
+		vlsString="$( echo -e "${vlsString}" | sed 's*_PLACEHOLDER_54743014_TAB_*\t*g' )"
+		vlsString="$( echo -e "${vlsString}" | sed 's*_PLACEHOLDER_24165191_DOT_*\.*g' )"
+		vlsString="$( echo -e "${vlsString}" | sed 's*_PLACEHOLDER_99358465_BACKSLASH_*\\*g' )"
+		vlsString="$( echo -e "${vlsString}" | sed 's*_PLACEHOLDER_66037559_fWDSLASH_1*/*g' )"  ## Can substitute any character for "/" delimiter in sed.
+		vlsString="$( echo -e "${vlsString}" | sed "s/_PLACEHOLDER_62469349_ASTERISK_/\*/g" )"
+		vlsString="$( echo -e "${vlsString}" | sed "s/_PLACEHOLDER_83569350_QUESTION_/\?/g" )"
+		vlsString="$( echo -e "${vlsString}" | sed "s/_PLACEHOLDER_8344569350_POUND_/#/g" )"
+		vlsString="$( echo -e "${vlsString}" | sed "s/_PLACEHOLDER_8344350_LBRACKET_/\[/g" )"
+		vlsString="$( echo -e "${vlsString}" | sed "s/_PLACEHOLDER_8344350_RBRACKET_/\]/g" )"
+		vlsString="$( echo -e "${vlsString}" | sed "s/_PLACEHOLDER_234350_PIPE_/|/g")"
+		vlsString="$( echo -e "${vlsString}" | sed "s/_PLACEHOLDER_4349351_LESSTHAN_/</g")"
+		vlsString="$( echo -e "${vlsString}" | sed "s/_PLACEHOLDER_93249357_GREATERTHAN_/>/g")"
+		vlsString="$( echo -e "${vlsString}" | sed 's/_PLACEHOLDER_452493548_DOLLAR_LPAREN_/\$(/g')"
+		vlsString="$( echo -e "${vlsString}" | sed 's/_PLACEHOLDER_152496547_DOLLAR_/\$/g')"
+
+	else :;
+		_fThrowError "_fLegacy_pStrOps_TempReplacements_byecho(): vlsStrOp must be specified as 'forward' or 'reverse'."
+	fi
+	echo "${vlsString}"
+
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+function fLegacy_escapeOrUnStStr_byecho(){ _fdbgEnter "$FUNCNAME" "" 1;
+	##	Purpose:
+	##		- Escapes a string so that quotes, asterisks, etc. won't screw up SQL, Windows filenames, eval, etc.
+	##		- Many of those things are valid Linux filenames but will break other stuff.
+	##	Input:
+	##		1 [REQUIRED]: A string
+	##		2 [optional]: "forward" (do substitutions) or "reverse" (undo them).
+	##	Echos:
+	##		Update string.
+	##	Examples:
+	##		MyVariable="$(fLegacy_escapeOrUnStStr_byecho "Some input string that might have wonky characters that break filenames, SQL, or eval")"
+	##	History:
+	##		- 20190923 Created by copying _fLegacy_pStrOps_TempReplacements_byecho().
+	##		- 20190924 Created by copying _fEscapeStr_byref_DEPRECATED1(), which has since been deleted.
+	##		- 20190925 jc: Added "$"
+
+	## Constants
+
+	## Args
+	local    valStr="$1"
+	local    operation="$2"
+
+	## Init; defaults
+	if [[ -z "${operation}" ]]; then operation="forward"; fi
+
+	## Do substitutions
+	if [[ "${operation,,}" == "forward" ]]; then :;
+		#valStr="$( echo -e "${valStr}" | sed -e ':a' -e 'N' -e '$!ba' -e 's/\n/❗▶newline◀❗/g' )"
+		valStr="$( echo -e "${valStr}" | sed ':a;N;$!ba;s/\n/❗▶newline◀❗/g'    2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed 's*\"*❗▶dquote◀❗*g'               2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed "s/'/❗▶squote◀❗/g"                2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed 's/`/❗▶backtick◀❗/g'              2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed 's*\t*❗▶tab◀❗*g'                  2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed 's*\\*❗▶backslash◀❗*g'            2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed "s/\*/❗▶asterisk◀❗/g"             2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed "s/\?/❗▶questionmark◀❗/g"         2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed "s/|/❗▶pipe◀❗/g"                  2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed "s/</❗▶lthan◀❗/g"                 2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed "s/>/❗▶gthan◀❗/g"                 2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed 's/\$(/❗▶dollarlparen◀❗/g'         2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed 's/\$/❗▶dollarl◀❗/g'               2>/dev/null || true)"
+
+	elif [[ "${operation,,}" == "reverse" ]]; then :;                        
+		valStr="$( echo -e "${valStr}" | sed 's*❗▶newline◀❗*\n*g'              2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed 's*❗▶dquote◀❗*\"*g'               2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed "s/❗▶squote◀❗/'/g"                2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed 's/❗▶backtick◀❗/`/g'              2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed 's*❗▶tab◀❗*\t*g'                  2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed 's*❗▶backslash◀❗*\\*g'            2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed "s/❗▶asterisk◀❗/\*/g"             2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed "s/❗▶questionmark◀❗/\?/g"         2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed "s/❗▶pipe◀❗/|/g"                  2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed "s/❗▶lthan◀❗/</g"                 2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed "s/❗▶gthan◀❗/>/g"                 2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed 's/❗▶dollarlparen◀❗/\$(/g'         2>/dev/null || true)"
+		valStr="$( echo -e "${valStr}" | sed 's/❗▶dollarl◀❗/\$/g'               2>/dev/null || true)"
+
+	else :;
+		_fThrowError "$meName.$FUNCNAME(): vlsStrOp must be specified as 'forward' or 'reverse'."
+	fi
+	echo "${valStr}"
+
+_fdbgEgress "$FUNCNAME" "" 1; }
+
+
+##############################################################################
+##	Debugging/profiling-related stuff
+##	History:
+##		- 20190927 JC: Created.
+##############################################################################
+declare -i -r _dbgIndentEachLevelBy=4
+declare -i    _dbgNestLevel=0
+declare -i    _dbgTemporarilyDisableEcho=0
+function _fdbgEnter(){
+	if [[ $doDebug -eq 1 ]]; then
+		local    -r functionName="$1"
+		local    -r extraText="$2"
+		local -i    dontEchoToStdout=0; if [[ -n "$3" ]] && [[ $3 =~ ^[0-9]+$ ]]; then dontEchoToStdout=$3; fi
+		local       output=""
+
+		## Output text to stdout
+		if [[ -n "$functionName" ]]; then output=".$functionName()"; fi
+		output="Entered ${meName}${output}"
+		if [[ -n "$extraText" ]]; then output="$output [${extraText}]"; fi
+		output="▶ $output:"
+		if [[ $dontEchoToStdout -eq 0 ]]; then _fdbgEcho "${output}"; fi
+
+		## Increment nest counter
+		if [[ _dbgNestLevel -lt 0 ]]; then _dbgNestLevel=0; fi
+		_dbgNestLevel=$((_dbgNestLevel+1))
+
+	fi
+}
+function _fdbgEgress(){
+	if [[ $doDebug -eq 1 ]]; then
+		local    -r functionName="$1"
+		local    -r extraText="$2"
+		local -i    dontEchoToStdout=0; if [[ -n "$3" ]] && [[ $3 =~ ^[0-9]+$ ]]; then dontEchoToStdout=$3; fi
+		local       output=""
+
+		## Decrement nest counter
+		_dbgNestLevel=$((_dbgNestLevel-1))
+		if [[ _dbgNestLevel -lt 0 ]]; then _dbgNestLevel=0; fi
+
+		## Output text to stdout
+		if [[ -n "$functionName" ]]; then output=".$functionName()"; fi
+		output="Egressed ${meName}${output}"
+		if [[ -n "$extraText" ]]; then output="$output [${extraText}]"; fi
+		output="◀ $output."
+		if [[ $dontEchoToStdout -eq 0 ]]; then _fdbgEcho "$output"; fi
+
+	fi
+}
+function _fdbgEcho(){
+	if [[ $doDebug -eq 1 ]] && [[ $_dbgTemporarilyDisableEcho -ne 1 ]]; then
+		_fEcho_Clean "$@"
+	fi
+}
+function _fdbgEchoVarAndVal(){
+	if [[ "${doDebug}" -eq 1 ]]; then
+		local -r varName="$1"
+		local -r optionalPrefix="$2"
+		local    outputStr=""
+		if [[ -n "$optionalPrefix" ]]; then outputStr="$optionalPrefix"; fi
+		outputStr="${outputStr}${varName} = '${!varName}'"
+		_fdbgEcho "$outputStr"
+	fi
+}
+
+##############################################################################
+##	Errorhandling-related stuff.
+##	History
+##		- 20190826 JC: Created by copying from 0_library_v2.
+##		- 20190919 JC: Slight tweaks to improve newline output.
+##############################################################################
+declare -i _wasCleanupRun=0
+function _fThrowError(){ _fdbgEnter "$FUNCNAME" "" 1;
+	local errMsg="$@"
+	if [[ -z "${errMsg}" ]]; then errMsg="An error occurred."; fi
+	_fEcho_Clean
+	_fEcho_Clean "${errMsg}"
+	exit 1
+_fdbgEgress "$FUNCNAME" "" 1; }
+function _fTrap_Exit(){ _fdbgEnter "$FUNCNAME" "" 0;
+	if [[ "${_wasCleanupRun}" == "0" ]]; then  ## String compare is less to fail than integer
+		_wasCleanupRun=1
+		_fSingleExitPoint "$@"
+	fi
+_fdbgEgress "$FUNCNAME" "" 0; }
+function _fTrap_Error(){ _fdbgEnter "$FUNCNAME" "" 0;
+	if [[ "${_wasCleanupRun}" == "0" ]]; then  ## String compare is less to fail than integer
+		_wasCleanupRun=1
+		_fEcho_ResetBlankCounter
+		_fSingleExitPoint "$@"
+	fi
+_fdbgEgress "$FUNCNAME" "" 1; }
+function _fSingleExitPoint(){ _fdbgEnter "$FUNCNAME" "" 0;
+	local -r signal="$1";  shift || true
+	local -r lineNum="$1"; shift || true
+	local -r errNum="$1";  shift || true
+	local -r errMsg="$@"
+	if [[ "${signal}" == "INT" ]]; then
+		_fEcho_Force
+		_fEcho "User interrupted."
+		fCleanup  ## User cleanup
+		exit 1
+	elif [[ "${errNum}" != "0" ]] && [[ "${errNum}" != "1" ]]; then  ## Clunky string compare is less likely to fail than integer
+		_fEcho_Clean
+		_fEcho_Clean "Signal .....: '${signal}'"
+		_fEcho_Clean "Err# .......: '${errNum}'"
+		_fEcho_Clean "Error ......: '${errMsg}'"
+		_fEcho_Clean "At line# ...: '${lineNum}'"
+		_fEcho_Clean
+		fCleanup  ## User cleanup
+	else
+		fCleanup  ## User cleanup
+	fi
+_fdbgEgress "$FUNCNAME" "" 0; }
+
+
+##############################################################################
+## Execution entry point (do not modify generic template
+##############################################################################
+
+## Define error and exit handling
+set -e
+set -E
+trap '_fTrap_Error ERR     ${LINENO} $? $_' ERR
+trap '_fTrap_Error SIGHUP  ${LINENO} $? $_' SIGHUP
+trap '_fTrap_Error SIGINT  ${LINENO} $? $_' SIGINT    ## CTRL+C
+trap '_fTrap_Error SIGTERM ${LINENO} $? $_' SIGTERM
+trap '_fTrap_Exit  EXIT    ${LINENO} $? $_' EXIT
+trap '_fTrap_Exit  INT     ${LINENO} $? $_' INT
+trap '_fTrap_Exit  TERM    ${LINENO} $? $_' TERM
+
+declare -r meName="$(basename "${0}")"
+_fdbgEnter
+
+	if [[ $@ =~ --(unittest|unitest|unit-test) ]]; then
+		_fUnitTest "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9"
+	else
+		fMain "$1" "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9"
+	fi
+
+_fdbgEgress
+
+exit
