@@ -34,6 +34,11 @@ This script expands on those ideas.
 
 ## Not objectives
 
+## To-do
+
+- [ ] Finish functionality
+- [ ] Remove unused boilerplate code
+
 ## Notes
 
 ## Appendix
