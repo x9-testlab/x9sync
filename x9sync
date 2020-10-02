@@ -1,8 +1,18 @@
 #!/bin/bash
+# shellcheck disable=2004  ## Inappropriate complaining of "$/${} is unnecessary on arithmetic variables."
+# shellcheck disable=2034  ## Unused variables.
+# shellcheck disable=2119  ## Disable confusing and inapplicable warning about function's $1 meaning script's $1.
+# shellcheck disable=2155  ## Disable check to 'Declare and assign separately to avoid masking return values'.
+# shellcheck disable=2120  ## OK with declaring variables that accept arguments, without calling with arguments (this is 'overloading').
+
+##
+##	WARNING: This script is maintained on github. Don't edit directly. https://github.com/jim-collier/x9ps1-git
+##
 
 ##	Purpose: See fPrint_About().
 ##	History:
-##		- 20100112 JC: Created from TEMPLATE_single-file_1-portion-to-copy_20191008.
+##		- 20200112 JC: Created from TEMPLATE_single-file_1-portion-to-copy_20191008.
+##		- 20201001 JC: Added shellcheck and warning.
 
 
 ## Constants; template
